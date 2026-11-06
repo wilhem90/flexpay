@@ -1,65 +1,40 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
- */
+import { Colors } from "@/constants/colors";
 
-import '@/global.css';
+export const Space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32, xxxl: 48 };
 
-import { Platform } from 'react-native';
+export const Radius = { sm: 8, md: 12, lg: 16, xl: 24, pill: 999 };
 
-export const Colors = {
-  light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
-  },
-  dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
-  },
-} as const;
+export const Type = {
+  display: { fontSize: 28, fontWeight: "800", letterSpacing: -0.5 },
+  title: { fontSize: 22, fontWeight: "800", letterSpacing: -0.3 },
+  heading: { fontSize: 17, fontWeight: "700" },
+  body: { fontSize: 14, fontWeight: "400" },
+  bodyStrong: { fontSize: 14, fontWeight: "600" },
+  caption: { fontSize: 12, fontWeight: "500" },
+  overline: { fontSize: 11, fontWeight: "700", letterSpacing: 0.6 },
+};
 
-export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
+export const Shadow = {
+  sm: { boxShadow: "0 1px 2px rgba(15, 23, 42, 0.06)" },
+  md: { boxShadow: "0 4px 16px rgba(15, 23, 42, 0.08)" },
+  lg: { boxShadow: "0 20px 60px rgba(15, 23, 42, 0.12)" },
+};
 
-export const Fonts = Platform.select({
-  ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
-    mono: 'ui-monospace',
-  },
-  default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
-    mono: 'monospace',
-  },
-  web: {
-    sans: 'var(--font-display)',
-    serif: 'var(--font-serif)',
-    rounded: 'var(--font-rounded)',
-    mono: 'var(--font-mono)',
-  },
-});
+export const Layout = {
+  breakpointDesktop: 1024,
+  sidebarWidth: 248,
+  topbarHeight: 64,
+  contentMaxWidth: 960,
+  cardMaxWidth: 560,
+};
 
-export const Spacing = {
-  half: 2,
-  one: 4,
-  two: 8,
-  three: 16,
-  four: 24,
-  five: 32,
-  six: 64,
-} as const;
-
-export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
-export const MaxContentWidth = 800;
+export const Surface = {
+  page: Colors.light.background,
+  card: Colors.light.surface,
+  soft: Colors.light.surfaceSoft,
+  border: Colors.borderLight.default,
+  text: Colors.textLight.primary,
+  textSecondary: Colors.textLight.secondary,
+  textMuted: Colors.textLight.muted,
+  brand: Colors.brand.primaryDeep,
+};
