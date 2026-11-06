@@ -3,7 +3,7 @@ import { useAppContext } from "@/context/Provider";
 import { Layout, Radius, Shadow, Space, Surface, Type } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import LanguageSwitcher from "@/components/languageSwitcher";
 import { useState } from "react";
@@ -130,7 +130,7 @@ export default function Navbar() {
                 <Ionicons name="close-outline" size={24} color={Surface.text} />
               </Pressable>
             </View>
-            <View style={styles.modalContent}>
+            <ScrollView style={styles.modalContent} showsVerticalScrollIndicator>
               <View style={styles.profileContent}>
                 <View style={styles.profileAvatar}>
                   <Text style={styles.profileAvatarText}>{initial}</Text>
@@ -166,7 +166,7 @@ export default function Navbar() {
                   {t("home.logout") || "Logout"}
                 </Text>
               </Pressable>
-            </View>
+            </ScrollView>
           </View>
         </>
       )}
