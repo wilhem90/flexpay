@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
     paddingHorizontal: Space.lg,
     paddingVertical: Space.md,
     height: Platform.OS === "web" ? Layout.topbarHeight : undefined,
