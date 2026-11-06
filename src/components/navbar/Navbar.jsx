@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import LanguageSwitcher from "@/components/languageSwitcher";
+import ResetPasswordModal from "@/components/modal/resetPassword";
 import { useState } from "react";
 
 export default function Navbar() {
@@ -14,6 +15,7 @@ export default function Navbar() {
   const insets = useSafeAreaInsets();
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
 
   if (!user) return null;
 
@@ -149,6 +151,30 @@ export default function Navbar() {
               <View style={styles.divider} />
 
               <Pressable
+                onPress={() => {
+                  setShowProfileModal(false);
+                  setShowResetPasswordModal(true);
+                }}
+                style={({ pressed, hovered }) => [
+                  styles.dropdownItem,
+                  (pressed || hovered) && styles.dropdownItemHover,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel={t("resetPassword.title") || "Change Password"}
+              >
+                <Ionicons
+                  name="key-outline"
+                  size={18}
+                  color={Colors.brand.primaryDeep}
+                />
+                <Text style={styles.dropdownItemText}>
+                  {t("resetPassword.title") || "Change Password"}
+                </Text>
+              </Pressable>
+
+              <View style={styles.divider} />
+
+              <Pressable
                 onPress={handleLogout}
                 style={({ pressed, hovered }) => [
                   styles.dropdownItem,
@@ -170,6 +196,12 @@ export default function Navbar() {
           </View>
         </>
       )}
+
+      {/* Reset Password Modal */}
+      <ResetPasswordModal 
+        visible={showResetPasswordModal} 
+        onClose={() => setShowResetPasswordModal(false)} 
+      />
     </>
   );
 }
@@ -281,6 +313,10 @@ const styles = StyleSheet.create({
   },
   dropdownItemHover: {
     backgroundColor: Surface.soft,
+  },
+  dropdownItemText: {
+    ...Type.bodyStrong,
+    color: Colors.brand.primaryDeep,
   },
   dropdownItemLogout: {
     ...Type.bodyStrong,

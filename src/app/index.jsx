@@ -1,7 +1,7 @@
 import LanguageSwitcher from "@/components/languageSwitcher";
+import ResetPasswordModal from "@/components/modal/resetPassword";
 import { Colors } from "@/constants/colors";
 import { useAppContext } from "@/context/Provider";
-import { showAlert } from "@/helpers/alert";
 import { Ionicons } from "@expo/vector-icons";
 import { Link } from "expo-router";
 import { useEffect, useState } from "react";
@@ -28,6 +28,7 @@ export default function Index() {
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
   const [secureText, setSecureText] = useState(true);
   const [error, setError] = useState(null);
   const [focusedField, setFocusedField] = useState(null);
@@ -290,13 +291,7 @@ export default function Index() {
             <View style={styles.linksRow}>
               <TouchableOpacity
                 disabled={authLoading}
-                onPress={() => {
-                  showAlert(
-                    t("login.forgotPassword"),
-                    t("login.forgotPasswordMessage"),
-                    [{ text: t("login.ok") }],
-                  );
-                }}
+                onPress={() => setShowResetPasswordModal(true)}
               >
                 <Text style={styles.link}>{t("login.forgotPassword")}</Text>
               </TouchableOpacity>
@@ -341,6 +336,12 @@ export default function Index() {
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Reset Password Modal */}
+      <ResetPasswordModal 
+        visible={showResetPasswordModal} 
+        onClose={() => setShowResetPasswordModal(false)} 
+      />
     </SafeAreaView>
   );
 }
