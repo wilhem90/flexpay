@@ -2,9 +2,9 @@ import Navbar from "@/components/navbar/Navbar";
 import { Colors } from "@/constants/colors";
 import { Layout, Radius, Shadow, Space, Surface, Type } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { router, usePathname } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Pressable, StyleSheet, Text, View } from "react-native";
 
 const NAV_ITEMS = [
   { key: "home", path: "/screens/home", icon: "grid-outline", payer: false },
@@ -46,7 +46,10 @@ function Sidebar({ items, pathname }) {
     <View style={styles.sidebar} accessibilityRole="navigation">
       <View style={styles.brand}>
         <View style={styles.logo}>
-          <Ionicons name="wallet-outline" size={18} color={Colors.button.primaryText} />
+          <Image 
+            source={require("@/assets/images/favicon.png")} 
+            style={styles.logoImage}
+          />
         </View>
         <Text style={styles.brandText}>FlexPay</Text>
       </View>
@@ -117,6 +120,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: Colors.brand.primaryDeep,
+  },
+  logoImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: Radius.md,
   },
   brandText: { ...Type.heading, color: Surface.text },
   nav: { flex: 1, gap: 4 },
