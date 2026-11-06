@@ -40,7 +40,6 @@ export default function Navbar() {
             <View style={styles.logo}>
               <Ionicons name="wallet-outline" size={22} color={Colors.brand.primaryDeep} />
             </View>
-            <Text style={styles.brandText}>FlexPay</Text>
           </View>
 
           {/* Right - Notifications + Profile */}
@@ -171,11 +170,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: Colors.statusLight.infoBackground,
-  },
-  brandText: {
-    ...Type.heading,
-    color: Surface.text,
-    fontWeight: "700",
   },
   right: {
     flexDirection: "row",
