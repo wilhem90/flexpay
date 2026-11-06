@@ -47,6 +47,7 @@ export default function Navbar() {
           <View style={styles.right}>
             {/* Notifications Bell */}
             <Pressable
+              onPress={() => setShowProfileMenu(!showProfileMenu)}
               style={({ pressed, hovered }) => [
                 styles.iconButton,
                 (pressed || hovered) && styles.iconButtonActive,
@@ -78,11 +79,6 @@ export default function Navbar() {
               >
                 <View style={styles.avatar}>
                   <Text style={styles.avatarText}>{initial}</Text>
-                </View>
-                <View style={styles.profileInfo}>
-                  <Text style={styles.profileName} numberOfLines={1}>
-                    {name}
-                  </Text>
                 </View>
                 <Ionicons
                   name={showProfileMenu ? "chevron-up" : "chevron-down"}
@@ -236,13 +232,6 @@ const styles = StyleSheet.create({
     color: Colors.button.primaryText,
     fontSize: 14,
     fontWeight: "700",
-  },
-  profileInfo: {
-    maxWidth: 100,
-  },
-  profileName: {
-    ...Type.bodyStrong,
-    color: Surface.text,
   },
   dropdown: {
     position: "absolute",
