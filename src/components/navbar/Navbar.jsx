@@ -3,7 +3,7 @@ import { useAppContext } from "@/context/Provider";
 import { Layout, Radius, Shadow, Space, Surface, Type } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import LanguageSwitcher from "@/components/languageSwitcher";
 import { useState } from "react";
@@ -38,7 +38,10 @@ export default function Navbar() {
           {/* Left - Logo/Brand */}
           <View style={styles.left}>
             <View style={styles.logo}>
-              <Ionicons name="wallet-outline" size={22} color={Colors.brand.primaryDeep} />
+              <Image 
+                source={require("@/assets/images/favicon.png")} 
+                style={styles.logoImage}
+              />
             </View>
           </View>
 
@@ -170,6 +173,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: Colors.statusLight.infoBackground,
+  },
+  logoImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: Radius.md,
   },
   right: {
     flexDirection: "row",
