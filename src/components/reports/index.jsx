@@ -1,8 +1,9 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable react-hooks/preserve-manual-memoization */
-import { Colors } from "@/constants/colors";
 import FilterTypeTransaction from "@/components/modal/filterTypeTransaction";
 import StatementModal from "@/components/modal/statement";
+import { Colors } from "@/constants/colors";
 import { useAppContext } from "@/context/Provider";
 import fetchSales from "@/services/sales";
 import { Ionicons } from "@expo/vector-icons";
@@ -40,10 +41,12 @@ const COLORS = {
 };
 
 const formatMoney = (value, currency = "BRL") =>
-  new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency,
-  }).format(Number(value) || 0);
+  value == null || value === "" || !Number.isFinite(Number(value))
+    ? "—"
+    : new Intl.NumberFormat("pt-BR", {
+        style: "currency",
+        currency,
+      }).format(Number(value));
 
 const formatDate = (date) => {
   const year = date.getFullYear();
@@ -134,16 +137,18 @@ function DateField({ value, min, max, onChange, onOpen, label }) {
   );
 }
 
-export default function Reports({ ref }) {
+export default function Reports({ ref, setLoadingPage }) {
   const { t, i18n } = useTranslation();
   const locale = LOCALES[i18n.language] ?? "en-US";
-  const { user, configs } = useAppContext();
+  const { user, configs, balanceRevision } = useAppContext();
 
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const requestRef = useRef(0);
+  const pendingRef = useRef(false);
+  const [nextOffset, setNextOffset] = useState(0);
   const [filterVisible, setFilterVisible] = useState(false);
 
   const [startDate, setStartDate] = useState("");
@@ -153,10 +158,11 @@ export default function Reports({ ref }) {
 
   const [dateField, setDateField] = useState(null);
   const [draftDate, setDraftDate] = useState(new Date());
-  const [balance, setBalance] = useState(0);
-  const [serviceName, setServiceName] = useState([]);
+  const [balance, setBalance] = useState(null);
+  const [balanceError, setBalanceError] = useState(false);
   const [selectedStatement, setSelectedStatement] = useState(null);
   const [typeTransaction, setTypeTransaction] = useState(null);
+  const [draftType, setDraftType] = useState(null);
 
   const [error, setError] = useState("");
 
@@ -165,32 +171,48 @@ export default function Reports({ ref }) {
       if (!configs?.baseUrl || !user?.access_token) return;
 
       try {
+        setLoadingPage?.(true);
+        setBalanceError(false);
         const response = await fetch(`${configs.baseUrl}/wallets/balance`, {
           headers: {
             Authorization: `Bearer ${user.access_token}`,
           },
         });
         const data_json = await response.json();
-        if (data_json?.success && data_json?.data?.balance != null) {
-          setBalance(data_json.data?.balance);
+        if (
+          !response.ok ||
+          !data_json?.success ||
+          data_json?.data?.balance == null
+        ) {
+          throw new Error("Wallet balance unavailable");
         }
+        setBalance(data_json.data.balance);
       } catch (err) {
         console.error("Failed to fetch balance:", err);
+        setBalance(null);
+        setBalanceError(true);
+      } finally {
+        setLoadingPage?.(false);
       }
     }
 
     fetchBalance();
-  }, [configs?.baseUrl, user?.access_token]);
+  }, [configs?.baseUrl, user?.access_token, balanceRevision]);
 
   const loadTransactions = useCallback(
     async ({ append = false, offset = 0 } = {}) => {
       if (!configs?.baseUrl || !user?.access_token) return;
 
       const requestId = ++requestRef.current;
+      pendingRef.current = true;
+      setError("");
       if (append) setLoadingMore(true);
       else {
         setLoading(true);
-        setError("");
+        setLoadingMore(false);
+        setTransactions([]);
+        setNextOffset(0);
+        setHasMore(false);
       }
 
       try {
@@ -212,22 +234,26 @@ export default function Reports({ ref }) {
 
         if (response.success && Array.isArray(response.data)) {
           const page = response.data;
+          setNextOffset(offset + page.length);
           setHasMore(page.length >= PAGE_SIZE);
           setTransactions((prev) => {
             if (!append) return page;
             const known = new Set(prev.map((tx) => tx.id));
             return [...prev, ...page.filter((tx) => !known.has(tx.id))];
           });
-        } else if (!append) {
-          setTransactions([]);
-          setHasMore(false);
+        } else {
+          if (!append) {
+            setTransactions([]);
+            setHasMore(false);
+          }
           setError(t("reports.failedToLoad"));
         }
       } catch (err) {
         console.error("Failed to fetch transactions:", err);
-        if (!append) setError(t("reports.connectionError"));
+        setError(t("reports.connectionError"));
       } finally {
         if (requestId === requestRef.current) {
+          pendingRef.current = false;
           setLoading(false);
           setLoadingMore(false);
         }
@@ -238,16 +264,26 @@ export default function Reports({ ref }) {
 
   const refresh = useCallback(() => loadTransactions(), [loadTransactions]);
 
-  const loadMore = () => {
-    if (loading || loadingMore || !hasMore || transactions.length === 0) return;
-    loadTransactions({ append: true, offset: transactions.length });
+  const loadMore = ({ retry = false } = {}) => {
+    if (
+      pendingRef.current ||
+      loading ||
+      loadingMore ||
+      !hasMore ||
+      (!retry && error)
+    )
+      return;
+    loadTransactions({ append: true, offset: nextOffset });
   };
 
-  useImperativeHandle(ref, () => ({ refresh, loadMore }));
+  useImperativeHandle(ref, () => ({ refresh, loadMore: () => loadMore() }));
 
   useEffect(() => {
     refresh();
-  }, [refresh]);
+    return () => {
+      requestRef.current += 1;
+    };
+  }, [refresh, balanceRevision]);
 
   const filteredTransactions = useMemo(() => {
     return transactions
@@ -278,19 +314,19 @@ export default function Reports({ ref }) {
 
   const { sections, totals } = useMemo(() => {
     const grouped = {};
+    const currencies = new Set(filteredTransactions.map((tx) => tx.currency));
     let totalDebit = 0;
     let totalCredit = 0;
 
     filteredTransactions.forEach((tx) => {
       const label = formatDateLabel(tx.created_at, t, locale);
-      setServiceName((prev) => [...prev, tx.service_type ?? "Unknown"]);
 
       if (!grouped[label]) grouped[label] = [];
       grouped[label].push(tx);
 
-      if (tx.nature === "debit" && tx.status !== "pending") {
+      if (tx.nature === "debit") {
         totalDebit += Number(tx.amount) || 0;
-      } else if (tx.nature === "credit" && tx.status !== "pending") {
+      } else if (tx.nature === "credit") {
         totalCredit += Number(tx.amount) || 0;
       }
     });
@@ -300,7 +336,20 @@ export default function Reports({ ref }) {
         title,
         data,
       })),
-      totals: { totalDebit, totalCredit },
+      totals: {
+        totalDebit,
+        totalCredit,
+        currency:
+          currencies.size === 1 &&
+          filteredTransactions.every(
+            (tx) =>
+              tx.amount != null &&
+              tx.amount !== "" &&
+              Number.isFinite(Number(tx.amount)),
+          )
+            ? [...currencies][0]
+            : null,
+      },
     };
   }, [filteredTransactions, t, locale]);
 
@@ -348,6 +397,7 @@ export default function Reports({ ref }) {
     setError("");
     setAppliedStart(startDate);
     setAppliedEnd(endDate);
+    setTypeTransaction(draftType);
     setFilterVisible(false);
   };
 
@@ -358,6 +408,7 @@ export default function Reports({ ref }) {
     setAppliedEnd("");
     setError("");
     setTypeTransaction(null);
+    setDraftType(null);
     setFilterVisible(false);
   };
 
@@ -374,6 +425,7 @@ export default function Reports({ ref }) {
     setEndDate(endValue);
     setAppliedStart(startValue);
     setAppliedEnd(endValue);
+    setTypeTransaction(draftType);
     setError("");
   };
 
@@ -427,10 +479,12 @@ export default function Reports({ ref }) {
             {isDebit ? "−" : "+"}
             {formatMoney(item.amount, item.currency)}
           </Text>
-          <Text style={styles.balance}>
-            {t("common.balance")}:{" "}
-            {formatMoney(item.balance_after ?? 0, item.currency)}
-          </Text>
+          {item.balance_after != null && (
+            <Text style={styles.balance}>
+              {t("common.balance")}:{" "}
+              {formatMoney(item.balance_after, item.currency)}
+            </Text>
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -475,7 +529,9 @@ export default function Reports({ ref }) {
                     </Text>
                   </View>
                   <Text style={[styles.summaryValue, { color: COLORS.green }]}>
-                    {formatMoney(totals.totalCredit)}
+                    {loading || error || !totals.currency
+                      ? "—"
+                      : formatMoney(totals.totalCredit, totals.currency)}
                   </Text>
                 </View>
 
@@ -491,7 +547,9 @@ export default function Reports({ ref }) {
                     </Text>
                   </View>
                   <Text style={[styles.summaryValue, { color: COLORS.red }]}>
-                    {formatMoney(totals.totalDebit)}
+                    {loading || error || !totals.currency
+                      ? "—"
+                      : formatMoney(totals.totalDebit, totals.currency)}
                   </Text>
                 </View>
 
@@ -500,10 +558,14 @@ export default function Reports({ ref }) {
                 <View style={styles.summaryItem}>
                   <Text style={styles.summaryLabel}>{t("common.balance")}</Text>
                   <Text style={styles.summaryValue}>
-                    {formatMoney(balance)}
+                    {balance == null ? "—" : formatMoney(balance)}
                   </Text>
                 </View>
               </View>
+
+              {balanceError ? (
+                <Text style={styles.errorText}>{t("home.balanceFailed")}</Text>
+              ) : null}
             </View>
 
             {filterVisible && (
@@ -582,8 +644,11 @@ export default function Reports({ ref }) {
 
                 <View style={styles.typeFilter}>
                   <FilterTypeTransaction
-                    listItems={serviceName}
-                    onChange={setTypeTransaction}
+                    listItems={transactions
+                      .map((transaction) => transaction.service_type)
+                      .filter(Boolean)}
+                    value={draftType}
+                    onChange={setDraftType}
                   />
                 </View>
 
@@ -593,7 +658,11 @@ export default function Reports({ ref }) {
                   style={styles.applyButton}
                   onPress={applyFilter}
                 >
-                  <Ionicons name="filter-outline" size={18} color={Colors.button.primaryText} />
+                  <Ionicons
+                    name="filter-outline"
+                    size={18}
+                    color={Colors.button.primaryText}
+                  />
                   <Text style={styles.applyButtonText}>
                     {t("reports.applyFilters")}
                   </Text>
@@ -650,6 +719,18 @@ export default function Reports({ ref }) {
             color={COLORS.primary}
           />
         )}
+        {error && sections.length > 0 ? (
+          <Text style={styles.errorText}>{error}</Text>
+        ) : null}
+        {hasMore && transactions.length > 0 && !loadingMore && (
+          <TouchableOpacity
+            style={styles.applyButton}
+            onPress={() => loadMore({ retry: true })}
+            accessibilityRole="button"
+          >
+            <Text style={styles.applyButtonText}>{t("common.loadMore")}</Text>
+          </TouchableOpacity>
+        )}
 
         {sections.length === 0 && (
           <View style={styles.empty}>
@@ -668,9 +749,6 @@ export default function Reports({ ref }) {
                   {error
                     ? t("reports.failedToLoadTitle")
                     : t("reports.noTransactionsTitle")}
-                </Text>
-                <Text style={styles.emptySubtitle}>
-                  {error || t("reports.noTransactionsMessage")}
                 </Text>
               </>
             )}

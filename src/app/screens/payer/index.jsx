@@ -1,17 +1,24 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-import { getPeriodRange, sortTransfers } from "@/components/payer/status";
+import NotificationsModal from "@/components/modal/notifications";
+import CustomPeriod from "@/components/payer/customPeriod";
+import {
+  getPeriodRange,
+  sortTransfers,
+  STATUS_PRIORITY,
+} from "@/components/payer/status";
 import TransferModal from "@/components/payer/transferModal";
 import TransferRow from "@/components/payer/transferRow";
 import { Colors } from "@/constants/colors";
 import { useAppContext } from "@/context/Provider";
+import { showAlert } from "@/helpers/alert";
 import { getTransfers } from "@/services/transfer";
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
+  Platform,
   RefreshControl,
   StyleSheet,
   Text,
@@ -191,6 +198,12 @@ export default function PayerTransfersScreen() {
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState(null);
   const [selected, setSelected] = useState(null);
+  const [notificationsVisible, setNotificationsVisible] = useState(false);
+  const [notificationCount, setNotificationCount] = useState(0);
+  const [customVisible, setCustomVisible] = useState(false);
+  const [customRange, setCustomRange] = useState(null);
+  const [status, setStatus] = useState(null);
+  const [statusOpen, setStatusOpen] = useState(false);
 
   const requestId = useRef(0);
 
@@ -203,7 +216,10 @@ export default function PayerTransfersScreen() {
 
   const fetchPage = useCallback(
     async (offset) => {
-      const { startDate, endDate } = getPeriodRange(period.days);
+      const { startDate, endDate } =
+        periodKey === "custom" && customRange
+          ? customRange
+          : getPeriodRange(period.days);
       const query = new URLSearchParams({
         limit: Number(PAGE_SIZE),
         offset: Number(offset),
@@ -221,13 +237,21 @@ export default function PayerTransfersScreen() {
       }
       return data.transfers ?? [];
     },
-    [configs.baseUrl, user.access_token, period.days, t],
+    [
+      configs.baseUrl,
+      user.access_token,
+      period.days,
+      periodKey,
+      customRange,
+      t,
+    ],
   );
 
   const load = useCallback(
     async (mode = "initial") => {
       const id = ++requestId.current;
       setError(null);
+      setLoadingMore(false);
 
       if (mode === "refresh") setRefreshing(true);
       else setLoading(true);
@@ -255,23 +279,29 @@ export default function PayerTransfersScreen() {
 
   useEffect(() => {
     load();
+    return () => {
+      requestId.current += 1;
+    };
   }, [load]);
 
   const loadMore = useCallback(async () => {
     if (loadingMore || loading || refreshing || !hasMore) return;
 
+    const id = requestId.current;
     setLoadingMore(true);
     try {
       const page = await fetchPage(transfers.length);
+      if (id !== requestId.current) return;
       setTransfers((prev) => {
         const known = new Set(prev.map((x) => x.id));
         return [...prev, ...page.filter((x) => !known.has(x.id))];
       });
       setHasMore(page.length === PAGE_SIZE);
     } catch (err) {
-      showToast?.("error", err?.message || t("transfers.loadFailed"));
+      if (id === requestId.current)
+        showToast?.("error", err?.message || t("transfers.loadFailed"));
     } finally {
-      setLoadingMore(false);
+      if (id === requestId.current) setLoadingMore(false);
     }
   }, [
     loadingMore,
@@ -286,7 +316,13 @@ export default function PayerTransfersScreen() {
 
   /* ------------------------------ Derivados ------------------------------ */
 
-  const sorted = useMemo(() => sortTransfers(transfers), [transfers]);
+  const sorted = useMemo(
+    () =>
+      sortTransfers(
+        status ? transfers.filter((item) => item.status === status) : transfers,
+      ),
+    [transfers, status],
+  );
   const pendingCount = useMemo(
     () => transfers.filter((x) => x.status === "pending").length,
     [transfers],
@@ -297,26 +333,25 @@ export default function PayerTransfersScreen() {
   const handlePeriodChange = useCallback(
     (key) => {
       if (key === periodKey) return;
+      requestId.current += 1;
       setTransfers([]);
       setHasMore(false);
+      setLoadingMore(false);
+      setCustomVisible(false);
       setPeriodKey(key);
     },
     [periodKey],
   );
 
   const handleLogout = useCallback(() => {
-    Alert.alert(
-      t("common.logoutTitle") ?? "Sair",
-      t("common.logoutMessage") ?? "Deseja encerrar sessão?",
-      [
-        { text: t("common.cancel") ?? "Cancelar", style: "cancel" },
-        {
-          text: t("common.logout") ?? "Sair",
-          style: "destructive",
-          onPress: () => logout?.(),
-        },
-      ],
-    );
+    showAlert(t("home.exit"), t("home.logoutConfirm"), [
+      { text: t("common.cancel"), style: "cancel" },
+      {
+        text: t("home.logout"),
+        style: "destructive",
+        onPress: logout,
+      },
+    ]);
   }, [logout, t]);
 
   /* ------------------------------ Header -------------------------------- */
@@ -333,24 +368,147 @@ export default function PayerTransfersScreen() {
             })}
           </Text>
         </View>
-        <TouchableOpacity
-          onPress={handleLogout}
-          style={styles.logout}
-          accessibilityRole="button"
-          accessibilityLabel={t("home.a11yLogout") ?? "Logout"}
-          activeOpacity={0.7}
-        >
-          <Ionicons
-            name="log-out-outline"
-            size={20}
-            color={Colors.textLight.secondary}
-          />
-        </TouchableOpacity>
+        {Platform.OS !== "web" && (
+          <>
+            <TouchableOpacity
+              onPress={() => setNotificationsVisible(true)}
+              style={styles.logout}
+              accessibilityRole="button"
+              accessibilityLabel={t("navbar.notifications")}
+            >
+              <Ionicons
+                name="notifications-outline"
+                size={20}
+                color={Colors.textLight.secondary}
+              />
+              {notificationCount > 0 && (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.notificationBadgeText}>
+                    {notificationCount > 9 ? "10+" : notificationCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleLogout}
+              style={styles.logout}
+              accessibilityRole="button"
+              accessibilityLabel={t("home.a11yLogout") ?? "Logout"}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name="log-out-outline"
+                size={20}
+                color={Colors.textLight.secondary}
+              />
+            </TouchableOpacity>
+          </>
+        )}
       </View>
 
       <SummaryCard total={transfers.length} pending={pendingCount} t={t} />
 
       <PeriodChips periodKey={periodKey} onChange={handlePeriodChange} t={t} />
+      <TouchableOpacity
+        style={[
+          styles.chip,
+          periodKey === "custom" && styles.chipActive,
+          styles.customButton,
+        ]}
+        onPress={() => setCustomVisible((value) => !value)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: customVisible }}
+      >
+        <Ionicons
+          name="options-outline"
+          size={14}
+          color={
+            periodKey === "custom"
+              ? Colors.button.primaryText
+              : Colors.textLight.secondary
+          }
+        />
+        <Text
+          style={[
+            styles.chipText,
+            periodKey === "custom" && styles.chipTextActive,
+          ]}
+        >
+          {t("transfers.customPeriod")}
+        </Text>
+      </TouchableOpacity>
+      {periodKey === "custom" && customRange && (
+        <Text style={styles.filterHint}>
+          {customRange.startDate} – {customRange.endDate}
+        </Text>
+      )}
+      {customVisible && (
+        <CustomPeriod
+          initialStart={customRange?.start || null}
+          initialEnd={customRange?.end || null}
+          onClose={() => setCustomVisible(false)}
+          onApply={(range) => {
+            requestId.current += 1;
+            setTransfers([]);
+            setHasMore(false);
+            setLoadingMore(false);
+            setCustomRange(range);
+            setPeriodKey("custom");
+            setCustomVisible(false);
+          }}
+        />
+      )}
+      <Text style={styles.filterLabel}>{t("transfers.filterStatus")}</Text>
+      <View style={styles.statusDropdown}>
+        <TouchableOpacity
+          style={styles.statusTrigger}
+          onPress={() => setStatusOpen((open) => !open)}
+          accessibilityRole="button"
+          accessibilityLabel={t("transfers.filterStatus")}
+          accessibilityState={{ expanded: statusOpen }}
+        >
+          <Text style={styles.statusText}>
+            {status
+              ? t(`transfers.status.${status}`)
+              : t("transfers.allStatuses")}
+          </Text>
+          <Ionicons
+            name={statusOpen ? "chevron-up" : "chevron-down"}
+            size={18}
+            color={Colors.brand.primaryDeep}
+          />
+        </TouchableOpacity>
+        {statusOpen && (
+          <View style={styles.statusOptions}>
+            {[null, ...Object.keys(STATUS_PRIORITY)].map((value) => (
+              <TouchableOpacity
+                key={value || "all"}
+                onPress={() => {
+                  setStatus(value);
+                  setStatusOpen(false);
+                }}
+                accessibilityRole="button"
+                accessibilityState={{ selected: status === value }}
+                style={styles.statusOption}
+              >
+                <Text style={styles.statusText}>
+                  {value
+                    ? t(`transfers.status.${value}`)
+                    : t("transfers.allStatuses")}
+                </Text>
+                {status === value && (
+                  <Ionicons
+                    name="checkmark"
+                    size={18}
+                    color={Colors.brand.primaryDeep}
+                  />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+      </View>
+      <Text style={styles.filterHint}>{t("transfers.loadedFilterNote")}</Text>
     </View>
   );
 
@@ -375,6 +533,16 @@ export default function PayerTransfersScreen() {
             <View style={styles.footer}>
               <ActivityIndicator color={Colors.brand.primaryDeep} />
             </View>
+          ) : hasMore && !loading && !refreshing ? (
+            <TouchableOpacity
+              style={styles.loadMore}
+              onPress={loadMore}
+              accessibilityRole="button"
+            >
+              <Text style={styles.actionText}>
+                {t("dashboardInfo.loadMore")}
+              </Text>
+            </TouchableOpacity>
           ) : null
         }
         contentContainerStyle={styles.listContent}
@@ -387,7 +555,7 @@ export default function PayerTransfersScreen() {
             colors={[Colors.brand.primaryDeep]}
           />
         }
-        onEndReached={loadMore}
+        onEndReached={status ? undefined : loadMore}
         onEndReachedThreshold={0.4}
         showsVerticalScrollIndicator={false}
         renderItem={({ item }) => (
@@ -395,7 +563,22 @@ export default function PayerTransfersScreen() {
         )}
       />
 
-      <TransferModal transfer={selected} onClose={() => setSelected(null)} />
+      {selected && (
+        <TransferModal
+          transfer={selected}
+          onClose={() => setSelected(null)}
+          fetchTransfers={() => fetchPage()}
+          editEmail={selected.status === "delivered"}
+        />
+      )}
+      <NotificationsModal
+        key={`${configs.baseUrl}:${user.access_token}`}
+        baseUrl={configs.baseUrl}
+        token={user.access_token}
+        visible={notificationsVisible}
+        onClose={() => setNotificationsVisible(false)}
+        countNotifications={setNotificationCount}
+      />
     </SafeAreaView>
   );
 }
@@ -440,6 +623,23 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderLight.default,
     alignItems: "center",
     justifyContent: "center",
+  },
+  notificationBadge: {
+    position: "absolute",
+    right: -3,
+    top: -3,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 3,
+    borderRadius: 9,
+    backgroundColor: Colors.status.error,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  notificationBadgeText: {
+    color: Colors.button.primaryText,
+    fontSize: 10,
+    fontWeight: "700",
   },
 
   /* Summary card */
@@ -506,6 +706,37 @@ const styles = StyleSheet.create({
     color: Colors.textLight.secondary,
   },
   chipTextActive: { color: Colors.button.primaryText },
+  customButton: { alignSelf: "flex-start" },
+  filterLabel: { color: Colors.textLight.primary, fontWeight: "700" },
+  statusDropdown: {
+    borderWidth: 1,
+    borderColor: Colors.borderLight.default,
+    borderRadius: RADIUS.md,
+    backgroundColor: Colors.light.surface,
+    overflow: "hidden",
+  },
+  statusTrigger: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: SPACING.lg,
+  },
+  statusOptions: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight.default,
+  },
+  statusOption: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: SPACING.lg,
+  },
+  statusText: { color: Colors.textLight.primary, fontSize: FONT.md },
+  filterHint: { color: Colors.textLight.secondary, fontSize: FONT.xs },
+  loadMore: { alignItems: "center", padding: SPACING.lg },
+  actionText: { color: Colors.brand.primaryDeep, fontWeight: "700" },
 
   /* Estados */
   center: {

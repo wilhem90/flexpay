@@ -29,6 +29,7 @@ export default function Provider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true); // initial session check
   const [authLoading, setAuthLoading] = useState(false); // login in-flight
+  const [balanceRevision, setBalanceRevision] = useState(0);
   const [configs, setConfigs] = useState(DEFAULT_CONFIGS);
   const showToast = (type, message) => {
     Toast.show({
@@ -113,9 +114,22 @@ export default function Provider({ children }) {
     }
   }, []);
 
+  // ---- delete account ----
+  const deleteAccount = useCallback(async () => {
+    try {
+      showToast("info", "Account cannot be deleted at this time.");
+    } catch (e) {
+      console.warn("Delete account storage clear failed:", e);
+    }
+  }, []);
+
   // ---- config helper ----
   const updateConfig = useCallback((key, value) => {
     setConfigs((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
+  const notifyBalanceChanged = useCallback(() => {
+    setBalanceRevision((revision) => revision + 1);
   }, []);
 
   const value = useMemo(
@@ -130,6 +144,9 @@ export default function Provider({ children }) {
       updateConfig,
       showToast,
       getBalance,
+      balanceRevision,
+      notifyBalanceChanged,
+      deleteAccount,
     }),
     [
       user,
@@ -140,6 +157,9 @@ export default function Provider({ children }) {
       configs,
       updateConfig,
       getBalance,
+      balanceRevision,
+      notifyBalanceChanged,
+      deleteAccount,
     ],
   );
 

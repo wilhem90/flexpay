@@ -23,6 +23,13 @@ export const Colors = {
     surfaceElevated: "#FFFFFF",
     surfaceSoft: "#F1F5F9",
     overlay: "#000000",
+    primary: "#1e5a96",
+    primarySoft: "#e3f2fd",
+    textStrong: "#333333",
+    textMuted: "#666666",
+    textSubtle: "#999999",
+    border: "#e8e8e8",
+    avatarBg: "#e0e0e0",
   },
 
   text: {
@@ -66,7 +73,6 @@ export const Colors = {
     warning: "#B45309",
     info: "#1D4ED8",
   },
-
 
   status: {
     success: "#22C55E",

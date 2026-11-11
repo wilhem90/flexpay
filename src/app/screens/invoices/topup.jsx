@@ -200,7 +200,7 @@ export default function TopupReceipt() {
         >
           <View style={styles.header}>
             <Text style={styles.brandName}>
-              {user?.type_profile === "company" ? user?.full_name : "FlexPay"}
+              {user?.type === "company" ? user?.full_name : "FlexPay"}
             </Text>
 
             <View style={styles.subtitleRow}>

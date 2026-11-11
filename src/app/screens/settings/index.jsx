@@ -11,12 +11,8 @@ import { router, useNavigation } from "expo-router";
 import { useLayoutEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import {
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { useAppContext } from "@/context/Provider";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 export default function Settings() {
   const [modalPinVisible, setModalPinVisible] = useState(false);
@@ -27,7 +23,9 @@ export default function Settings() {
   const [modalSubusersVisible, setModalSubusersVisible] = useState(false);
   const { t } = useTranslation();
   const navigation = useNavigation();
+  const { user } = useAppContext();
 
+  const type = user?.type;
   useLayoutEffect(() => {
     navigation.setOptions({
       title: t("settings.title"),
@@ -53,12 +51,14 @@ export default function Settings() {
       icon: "storefront",
       color: Colors.brand.secondaryDark,
       onPress: () => router.push("screens/payer"),
+      show: type === "admin",
     },
     {
       title: t("settings.accountSettings"),
       icon: "person-circle",
       color: Colors.status.infoDark,
       onPress: () => setModalAccountVisible(true),
+      show: type === "admin",
     },
     {
       title: t("settings.mySubusers"),
@@ -77,33 +77,39 @@ export default function Settings() {
         />
 
         <Card padded={false} style={styles.list}>
-          {listItem.map((item, index) => (
-            <TouchableOpacity
-              key={item.title}
-              style={[
-                styles.listItem,
-                index === listItem.length - 1 && styles.listItemLast,
-              ]}
-              onPress={item.onPress}
-              activeOpacity={0.6}
-              accessibilityRole="button"
-              accessibilityLabel={item.title}
-            >
-              <View style={[styles.iconBadge, { backgroundColor: item.color }]}>
+          {listItem
+            .filter((item) => item.show !== false)
+            .map((item, index) => (
+              <TouchableOpacity
+                key={item.title}
+                style={[
+                  styles.listItem,
+                  index ===
+                    listItem.filter((item) => item.show !== false).length - 1 &&
+                    styles.listItemLast,
+                ]}
+                onPress={item.onPress}
+                activeOpacity={0.6}
+                accessibilityRole="button"
+                accessibilityLabel={item.title}
+              >
+                <View
+                  style={[styles.iconBadge, { backgroundColor: item.color }]}
+                >
+                  <Ionicons
+                    name={item.icon}
+                    size={18}
+                    color={Colors.button.primaryText}
+                  />
+                </View>
+                <Text style={styles.listItemText}>{item.title}</Text>
                 <Ionicons
-                  name={item.icon}
-                  size={18}
-                  color={Colors.button.primaryText}
+                  name="chevron-forward"
+                  size={20}
+                  color={Colors.textLight.disabled}
                 />
-              </View>
-              <Text style={styles.listItemText}>{item.title}</Text>
-              <Ionicons
-                name="chevron-forward"
-                size={20}
-                color={Colors.textLight.disabled}
-              />
-            </TouchableOpacity>
-          ))}
+              </TouchableOpacity>
+            ))}
         </Card>
       </Screen>
       <PinTransaction

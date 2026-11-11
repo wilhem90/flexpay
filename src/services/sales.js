@@ -6,6 +6,7 @@ const fetchSales = async (url, token) => {
         Authorization: `Bearer ${token}`,
       },
     });
+    if (!response.ok) throw new Error(`Statements request failed (${response.status})`);
     return await response.json();
   } catch (error) {
     console.error("Failed to fetch sales:", error);
@@ -33,4 +34,3 @@ const fetchSalesBalance = async (url, token) => {
 
 export default fetchSales;
 export { fetchSalesBalance };
-

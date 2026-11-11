@@ -2,6 +2,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
+import { Platform } from "react-native";
 import translations from "./translate.json";
 
 export const LANGUAGE_KEY = "@app/language";
@@ -27,17 +28,17 @@ i18n.use(initReactI18next).init({
   returnNull: false,
 });
 
-AsyncStorage.getItem(LANGUAGE_KEY)
-  .then((saved) => {
-    if (saved && supported.includes(saved)) i18n.changeLanguage(saved);
-  })
-  .catch(() => {});
+if (Platform.OS !== "web" || typeof window !== "undefined") {
+  AsyncStorage.getItem(LANGUAGE_KEY)
+    .then((saved) => {
+      if (saved && supported.includes(saved)) i18n.changeLanguage(saved);
+    })
+    .catch((error) => console.warn("Language restore failed:", error));
+}
 
 export async function setLanguage(code) {
   await i18n.changeLanguage(code);
-  try {
-    await AsyncStorage.setItem(LANGUAGE_KEY, code);
-  } catch {}
+  await AsyncStorage.setItem(LANGUAGE_KEY, code);
 }
 
 export default i18n;

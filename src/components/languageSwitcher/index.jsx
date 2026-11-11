@@ -1,114 +1,160 @@
 import { Colors } from "@/constants/colors";
+import { showAlert } from "@/helpers/alert";
 import { LANGUAGES, setLanguage } from "@/libs/i18n";
+import { Ionicons } from "@expo/vector-icons";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Radius, Space, Surface, Type } from "@/constants/theme";
+import {
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 
-export default function LanguageSwitcher({ compact = false, dropdown = false }) {
-  const { i18n } = useTranslation();
+export default function LanguageSwitcher() {
+  const { i18n, t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState({ top: 0, left: 0 });
+  const trigger = useRef(null);
+  const { width, height } = useWindowDimensions();
+  const selected = LANGUAGES.find(
+    (language) => language.code === i18n.language,
+  );
 
-  if (dropdown) {
-    return (
-      <View style={styles.dropdownContainer}>
-        {LANGUAGES.map((lang) => {
-          const selected = i18n.language === lang.code;
-          return (
-            <Pressable
-              key={lang.code}
-              onPress={() => setLanguage(lang.code)}
-              style={({ pressed, hovered }) => [
-                styles.dropdownItem,
-                (pressed || hovered) && styles.dropdownItemHover,
-              ]}
-              accessibilityRole="button"
-              accessibilityState={{ selected }}
-            >
-              <Text style={[styles.dropdownItemText, selected && styles.dropdownItemTextSelected]}>
-                {lang.label}
-              </Text>
-              {selected && (
-                <Text style={styles.dropdownItemCheck}>✓</Text>
-              )}
-            </Pressable>
-          );
-        })}
-      </View>
-    );
-  }
+  useEffect(() => {
+    if (!open || Platform.OS !== "web") return;
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        setOpen(false);
+      }
+    };
+    document.addEventListener("keydown", closeOnEscape, true);
+    return () => document.removeEventListener("keydown", closeOnEscape, true);
+  }, [open]);
+
+  const toggle = () => {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    trigger.current?.measureInWindow((x, y, triggerWidth, triggerHeight) => {
+      setPosition({
+        left: Math.max(8, Math.min(x, width - 208)),
+        top: Math.max(8, Math.min(y + triggerHeight + 4, height - 220)),
+      });
+      setOpen(true);
+    });
+  };
+
+  const select = async (code) => {
+    try {
+      await setLanguage(code);
+      setOpen(false);
+    } catch (error) {
+      console.error("Language change failed:", error);
+      setOpen(false);
+      showAlert(t("common.error"), t("common.somethingWentWrong"));
+    }
+  };
 
   return (
-    <View style={[styles.row, compact && styles.compact]}>
-      {LANGUAGES.map((lang) => {
-        const selected = i18n.language === lang.code;
-        return (
-          <TouchableOpacity
-            key={lang.code}
-            onPress={() => setLanguage(lang.code)}
-            style={[styles.pill, selected && styles.pillSelected]}
-            accessibilityRole="button"
-            accessibilityState={{ selected }}
-          >
-            <Text style={[styles.text, selected && styles.textSelected]}>
-              {lang.code.toUpperCase()}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
+    <View>
+      <Pressable
+        ref={trigger}
+        onPress={toggle}
+        style={styles.trigger}
+        accessibilityRole="button"
+        accessibilityLabel={t("settings.language")}
+        accessibilityState={{ expanded: open }}
+      >
+        <Ionicons
+          name="language-outline"
+          size={18}
+          color={Colors.brand.primaryDeep}
+        />
+        <Text style={styles.label}>{selected?.label ?? i18n.language}</Text>
+        <Ionicons
+          name={open ? "chevron-up" : "chevron-down"}
+          size={16}
+          color={Colors.brand.primaryDeep}
+        />
+      </Pressable>
+      <Modal
+        visible={open}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setOpen(false)}
+      >
+        <View style={styles.overlay}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setOpen(false)}
+            accessibilityLabel={t("common.close")}
+          />
+          <View style={[styles.menu, position]}>
+            {LANGUAGES.map((language) => (
+              <Pressable
+                key={language.code}
+                onPress={() => select(language.code)}
+                style={styles.option}
+                accessibilityRole="button"
+                accessibilityState={{
+                  selected: i18n.language === language.code,
+                }}
+              >
+                <Text style={styles.label}>{language.label}</Text>
+                {i18n.language === language.code && (
+                  <Ionicons
+                    name="checkmark"
+                    size={18}
+                    color={Colors.brand.primaryDeep}
+                  />
+                )}
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 8,
-    marginBottom: 16,
-  },
-  compact: { marginBottom: 0, gap: 4 },
-  pill: {
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: Colors.borderLight.default,
-  },
-  pillSelected: {
-    backgroundColor: Colors.brand.primaryDeep,
-    borderColor: Colors.brand.primaryDeep,
-  },
-  text: {
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  textSelected: { color: Colors.text.primary },
-  // Dropdown styles
-  dropdownContainer: {
-    paddingHorizontal: Space.md,
-    paddingVertical: Space.sm,
-    gap: 4,
-  },
-  dropdownItem: {
+  trigger: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    padding: 10,
+    marginBottom: 10,
+    borderRadius: 10,
+  },
+  label: {
+    color: Colors.textLight.primary,
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  overlay: { flex: 1 },
+  menu: {
+    position: "absolute",
+    right: 0,
+    width: 200,
+    padding: 6,
+    backgroundColor: Colors.light.surface,
+    borderWidth: 1,
+    borderColor: Colors.borderLight.default,
+    borderRadius: 12,
+    elevation: 8,
+  },
+  option: {
+    flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: Space.sm,
-    paddingHorizontal: Space.md,
-    borderRadius: Radius.md,
-  },
-  dropdownItemHover: {
-    backgroundColor: Surface.soft,
-  },
-  dropdownItemText: {
-    ...Type.body,
-    color: Surface.text,
-  },
-  dropdownItemTextSelected: {
-    ...Type.bodyStrong,
-    color: Colors.brand.primaryDeep,
-  },
-  dropdownItemCheck: {
-    color: Colors.brand.primaryDeep,
-    fontWeight: "700",
+    alignItems: "center",
+    padding: 12,
+    borderRadius: 8,
   },
 });

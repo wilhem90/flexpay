@@ -10,7 +10,11 @@ const createDeposit = async (url, token, payload) => {
 
   try {
     const response = await fetch(url, options);
-    return await response.json();
+    const data = await response.json();
+    if (!response.ok) {
+      return { ...data, success: false, error: data?.error || `HTTP ${response.status}` };
+    }
+    return data;
   } catch (error) {
     console.error(error);
     return { success: false };

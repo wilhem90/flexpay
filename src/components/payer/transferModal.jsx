@@ -1,12 +1,14 @@
 import { Colors } from "@/constants/colors";
 import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useAppContext } from "@/context/Provider";
 import { showAlert } from "@/helpers/alert";
+import { updateTransferStatus } from "@/services/transfer";
 import {
+  ActivityIndicator,
   Modal,
   Platform,
   Pressable,
@@ -58,15 +60,61 @@ function Line({ label, value, copyable = false }) {
   );
 }
 
-export default function TransferModal({ transfer, onClose }) {
+export default function TransferModal({
+  transfer,
+  onClose,
+  fetchTransfers,
+  editEmail,
+}) {
   const { t, i18n } = useTranslation();
   const locale = getLocale(i18n.language);
-  const [inputValue, setInputValue] = useState("");
+  const [inputValue, setInputValue] = useState(
+    transfer?.transfer_externe_id || "",
+  );
   const { showToast } = useAppContext();
+  const [loading, setLoading] = useState(false);
+  const { user, configs } = useAppContext();
 
-  if (!transfer) return null;
+  const updatedTransfer = useCallback(async () => {
+    try {
+      if (transfer.status === "pending") {
+        setLoading(true);
+        const url = `${configs.baseUrl}/transfers/update-transfer`;
+        const token = user.access_token; // Substitua pelo token real
+        const payload = { status: "processing", transferId: transfer.id }; // Substitua pelo payload real
+        // Aqui você pode chamar a função updateTransferStatus do serviço
+        const response = await updateTransferStatus(url, token, payload);
+        if (response?.success) {
+          showToast("success", "Processing transfer");
+        }
+        if (response && !response.success) {
+          onClose();
+          return showToast("error", "Failed to process transfer");
+        }
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+      fetchTransfers?.();
+    }
+  }, [
+    configs.baseUrl,
+    fetchTransfers,
+    onClose,
+    showToast,
+    transfer,
+    user.access_token,
+  ]);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    updatedTransfer();
+  }, [updatedTransfer]);
 
-  const handleRegister = () => {
+  if (loading)
+    return <ActivityIndicator size="large" color={Colors.brand.primaryDeep} />;
+
+  const handleRegister = async () => {
     if (!inputValue.trim()) {
       showToast("error", t("common.validationRequired"));
       if (Platform.OS === "web") {
@@ -76,17 +124,31 @@ export default function TransferModal({ transfer, onClose }) {
       return;
     }
 
-    if (Platform.OS === "web") {
-      showToast("success", `Code: ${inputValue}`);
-      setInputValue("");
-      onClose();
+    if (transfer.status !== "processing" && !inputValue) {
       return;
     }
-    // Aqui você implementa a lógica de registro
-    showToast("success", `Code: ${inputValue}`);
-    setInputValue("");
 
+    setLoading(true);
+    const url = `${configs.baseUrl}/transfers/update-transfer`;
+    const token = user.access_token; // Substitua pelo token real
+    const payload = {
+      status: "delivered",
+      transferId: transfer.id,
+      transferExterneId: inputValue,
+    };
+
+    const response = await updateTransferStatus(url, token, payload);
+    if (response && !response.success) {
+      onClose();
+      return showToast(
+        "error",
+        response?.message || "Failed to process transfer",
+      );
+    }
+    showToast("success", response?.message || "Processing transfer");
+    setInputValue("");
     onClose();
+    return;
   };
 
   return (
@@ -143,40 +205,68 @@ export default function TransferModal({ transfer, onClose }) {
 
             {/* Input para digitar e botão registrar */}
             <View style={styles.card}>
-              <Text style={styles.inputLabel}>Digite o valor</Text>
+              <Text style={styles.inputLabel}>{t("transfers.code")}</Text>
               <TextInput
                 style={[styles.input, inputValue === "" && styles.inputError]}
                 value={inputValue}
                 onChangeText={setInputValue}
-                placeholder="0,00"
+                placeholder={t("transfers.codePlaceholder")}
                 placeholderTextColor={Colors.textLight.secondary}
                 keyboardType="numeric"
+                editable={!editEmail}
               />
               {inputValue === "" && (
                 <Text style={styles.validationError}>
                   {t("common.validationRequired")}
                 </Text>
               )}
-              <Pressable
-                onPress={handleRegister}
-                style={({ pressed }) => [
-                  styles.registerButton,
-                  pressed && { opacity: 0.8 },
-                ]}
-                accessibilityRole="button"
-                accessibilityLabel={t("common.confirm")}
-                disabled={inputValue === ""}
-                opacity={inputValue === "" ? 0.5 : 1}
-              >
-                <Ionicons
-                  name="checkmark-circle-outline"
-                  size={18}
-                  color={Colors.button.primaryText}
-                />
-                <Text style={styles.registerButtonText}>
-                  {t("common.confirm")}
+              {editEmail ? (
+                <Text
+                  style={[
+                    styles.infoText,
+                    transfer.delivered_at === null && {
+                      fontWeight: "bold",
+                      fontSize: 16,
+                      textAlign: "center",
+                      paddingVertical: 14,
+                      backgroundColor: Colors.statusLight.successBackground,
+                      color: Colors.statusLight.successText,
+                      marginVertical: 8,
+                      borderRadius: 8,
+                      letterSpacing: 1,
+                    },
+                  ]}
+                >
+                  {" "}
+                  {t("transfers.deliveredAt")}:{" "}
+                  {transfer.delivered_at ||
+                    new Date().toLocaleString("pt-BR", {
+                      dateStyle: "short",
+                      timeStyle: "short",
+                    })}
                 </Text>
-              </Pressable>
+              ) : (
+                <Pressable
+                  onPress={handleRegister}
+                  style={({ pressed }) => [
+                    styles.registerButton,
+                    pressed && { opacity: 0.8 },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("common.confirm")}
+                  disabled={inputValue === ""}
+                  opacity={inputValue === "" ? 0.5 : 1}
+                >
+                  <Ionicons
+                    name="checkmark-circle-outline"
+                    size={18}
+                    color={Colors.button.primaryText}
+                  />
+                  <Text style={styles.registerButtonText}>
+                    {t("common.confirm")}
+                  </Text>
+                </Pressable>
+              )}
             </View>
           </ScrollView>
         </Pressable>

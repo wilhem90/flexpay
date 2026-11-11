@@ -2,7 +2,12 @@ import { Colors } from "@/constants/colors";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { formatDateTime, formatMoney, getLocale, getStatusStyle } from "./status";
+import {
+  formatDateTime,
+  formatMoney,
+  getLocale,
+  getStatusStyle,
+} from "./status";
 
 export function StatusBadge({ status, size = 12 }) {
   const { t } = useTranslation();
@@ -34,7 +39,9 @@ export default function TransferRow({ item, onPress }) {
           <Text style={styles.sequence}>#{item.sequence_number}</Text>
           <StatusBadge status={item.status} />
         </View>
-        <Text style={styles.date}>{formatDateTime(item.created_at, locale)}</Text>
+        <Text style={styles.date}>
+          {formatDateTime(item.created_at, locale)}
+        </Text>
       </View>
 
       <View style={styles.body}>
@@ -81,7 +88,11 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
   },
   headerLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
-  sequence: { fontSize: 13, fontWeight: "700", color: Colors.textLight.secondary },
+  sequence: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: Colors.textLight.secondary,
+  },
   date: { fontSize: 11, color: Colors.textLight.muted },
   body: { flexDirection: "row", alignItems: "center", gap: 12 },
   bodyLeft: { flex: 1 },

@@ -1,4 +1,5 @@
 import { Colors } from "@/constants/colors";
+import { Radius, Space, Type } from "@/constants/theme";
 import { useAppContext } from "@/context/Provider";
 import { Ionicons } from "@expo/vector-icons";
 import { memo, useState } from "react";
@@ -12,7 +13,6 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { Radius, Space, Type } from "@/constants/theme";
 
 function ResetPasswordModal({ visible, onClose }) {
   const { t } = useTranslation();
@@ -40,7 +40,8 @@ function ResetPasswordModal({ visible, onClose }) {
 
     setLoading(true);
     try {
-      const url = "http://localhost:8080/api/profiles/reset-password";
+      const url =
+        "https://server-33000437068.europe-west1.run.app/api/profiles/reset-password";
       const options = {
         method: "GET",
         headers: { "Content-Type": "application/json" },
@@ -56,7 +57,7 @@ function ResetPasswordModal({ visible, onClose }) {
         showToast(
           "success",
           t("resetPassword.sentSuccess") ||
-            "We sent a reset link to your email. Please check your inbox."
+            "We sent a reset link to your email. Please check your inbox.",
         );
       } else {
         showToast("error", data.error || "Failed to send reset email");
@@ -66,7 +67,7 @@ function ResetPasswordModal({ visible, onClose }) {
       showToast(
         "error",
         t("common.somethingWentWrong") ||
-          "Something went wrong. Please try again."
+          "Something went wrong. Please try again.",
       );
     } finally {
       setLoading(false);
@@ -101,7 +102,11 @@ function ResetPasswordModal({ visible, onClose }) {
             accessibilityRole="button"
             accessibilityLabel="Close"
           >
-            <Ionicons name="close-outline" size={24} color={Colors.textLight.primary} />
+            <Ionicons
+              name="close-outline"
+              size={24}
+              color={Colors.textLight.primary}
+            />
           </Pressable>
 
           {step === "email" && (
@@ -125,13 +130,11 @@ function ResetPasswordModal({ visible, onClose }) {
               </Text>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>
-                  {t("login.email") || "Email"}
-                </Text>
+                <Text style={styles.label}>Email</Text>
                 <TextInput
                   style={styles.input}
                   placeholder={
-                    t("login.email") || "example@email.com"
+                    t("login.emailPlaceholder") || "Enter your email"
                   }
                   placeholderTextColor={Colors.textLight.disabled}
                   value={email}
@@ -155,7 +158,10 @@ function ResetPasswordModal({ visible, onClose }) {
                 accessibilityLabel="Send reset link"
               >
                 {loading ? (
-                  <ActivityIndicator color={Colors.button.primaryText} size={20} />
+                  <ActivityIndicator
+                    color={Colors.button.primaryText}
+                    size={20}
+                  />
                 ) : (
                   <Text style={styles.buttonText}>
                     {t("resetPassword.sendLink") || "Send Reset Link"}
@@ -193,10 +199,7 @@ function ResetPasswordModal({ visible, onClose }) {
               <Text style={styles.dontReceiveHint}>
                 {t("resetPassword.dontReceive") ||
                   "Didn't receive the email? Check your spam folder or "}
-                <Text
-                  style={styles.linkText}
-                  onPress={handleRequestReset}
-                >
+                <Text style={styles.linkText} onPress={handleRequestReset}>
                   {t("resetPassword.tryAgain") || "try again"}
                 </Text>
               </Text>

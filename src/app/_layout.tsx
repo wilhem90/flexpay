@@ -1,7 +1,6 @@
 import AlertHost from "@/components/alert";
 import AppBackground from "@/components/appbackground";
 import WebShell from "@/components/shell/WebShell";
-import { Layout } from "@/constants/theme";
 import { Colors } from "@/constants/colors";
 import Provider, { useAppContext } from "@/context/Provider";
 import "@/libs/i18n";
@@ -40,9 +39,9 @@ function AppNavigator() {
   const { user, loading } = useAppContext();
   const { t } = useTranslation();
 
-  const typedUser = user as { type_profile?: string } | null | undefined;
+  const typedUser = user as { type?: string } | null | undefined;
   const isAuthenticated = !!user;
-  const isPayer = typedUser?.type_profile === "payer";
+  const isPayer = typedUser?.type === "payer";
 
   useEffect(() => {
     if (!loading) {
@@ -67,10 +66,10 @@ function AppNavigator() {
       }}
     >
       {/* PAGADOR */}
-      <Stack.Protected guard={isAuthenticated}>
+      <Stack.Protected guard={isAuthenticated && isPayer}>
         <Stack.Screen
           name="screens/payer/index"
-          options={{ headerShown: SHOW_HEADER, title: t("common.back") }}
+          options={{ headerShown: false, title: t("common.back") }}
         />
       </Stack.Protected>
 
@@ -102,7 +101,29 @@ function AppNavigator() {
           }}
         />
 
-        <Stack.Screen name="screens/invoices/transfer" />
+        <Stack.Screen
+          name="screens/account/index"
+          options={{
+            headerShown: SHOW_HEADER,
+            title: t("common.back"),
+          }}
+        />
+
+        <Stack.Screen
+          name="screens/bets/index"
+          options={{
+            headerShown: SHOW_HEADER,
+            title: t("common.back"),
+          }}
+        />
+
+        <Stack.Screen
+          name="screens/invoices/transfer"
+          options={{
+            headerShown: SHOW_HEADER,
+            title: t("common.back"),
+          }}
+        />
 
         <Stack.Screen
           name="screens/employees"
@@ -187,8 +208,7 @@ function AppFrame() {
   const { user } = useAppContext();
   const { width } = useWindowDimensions();
   const typedUser = user as { type_profile?: string } | null | undefined;
-  const isDesktopShell =
-    Platform.OS === "web" && !!user && width >= Layout.breakpointDesktop;
+  const isDesktopShell = Platform.OS === "web" && !!user;
   const isWide = width > MAX_CONTENT_WIDTH;
 
   if (isDesktopShell) {

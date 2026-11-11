@@ -3,6 +3,7 @@ import Message from "@/components/message";
 import DepositModal from "@/components/modal/deposit";
 import LanguageModal from "@/components/modal/language";
 import Reports from "@/components/reports";
+import { PageHeader } from "@/components/ui";
 import { Colors } from "@/constants/colors";
 import { useAuthUser } from "@/context/Provider";
 import { showAlert } from "@/helpers/alert";
@@ -11,7 +12,9 @@ import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  ActivityIndicator,
   Modal,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -23,7 +26,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 const SHORTCUT_COLORS = {
   sales: { bg: Colors.light.surfaceSoft, fg: Colors.status.info },
-  reports: { bg: Colors.light.surfaceSoft, fg: Colors.brand.primaryDeep },
+  bets: { bg: Colors.light.surfaceSoft, fg: Colors.brand.primaryDeep },
   transfer: { bg: Colors.light.surfaceSoft, fg: Colors.brand.secondary },
   topup: { bg: Colors.light.surfaceSoft, fg: Colors.transactions.fee },
   settings: { bg: Colors.light.surfaceSoft, fg: Colors.transactions.refund },
@@ -43,30 +46,34 @@ const getShortcuts = (t) => [
     label: t("home.topupsAnywhere"),
     icon: "phone-portrait-outline",
     onPress: () => router.push("screens/topup"),
+    shows: ["company", "employee"],
   },
   {
     key: "transfer",
     label: t("home.sendMoneyHaiti"),
     icon: "paper-plane-outline",
     onPress: () => router.push("screens/transfer"),
+    shows: ["company", "employee"],
   },
   {
-    key: "reports",
-    label: t("home.salesReports"),
+    key: "bets",
+    label: t("home.bets"),
     icon: "dice",
-    onPress: () =>
-      showAlert(t("home.salesReportsTitle"), t("home.salesReportsMessage")),
+    onPress: () => router.push("screens/bets"),
+    shows: ["company", "employee"],
   },
   {
     key: "sales",
     label: t("home.checkSales"),
     icon: "pie-chart-outline",
+    shows: ["payer", "admin", "superadmin", "company"],
   },
   {
     key: "settings",
     label: t("home.companySettings"),
     icon: "storefront-outline",
     onPress: () => router.push("screens/settings"),
+    shows: ["company", "employee", "admin", "superadmin"],
   },
   {
     key: "machine",
@@ -77,12 +84,14 @@ const getShortcuts = (t) => [
         t("home.machineSettingsTitle"),
         t("home.machineSettingsMessage"),
       ),
+    shows: ["company", "employee", "admin", "superadmin"],
   },
 ];
 
 export default function HomeScreen() {
   const { t } = useTranslation();
-  const { user, logout, getBalance, configs, showToast } = useAuthUser();
+  const { user, logout, getBalance, configs, showToast, balanceRevision } =
+    useAuthUser();
   const scrollRef = useRef(null);
   const reportsRef = useRef(null);
   const reportsY = useRef(0);
@@ -95,6 +104,7 @@ export default function HomeScreen() {
   const [isDepositVisible, setIsDepositVisible] = useState(false);
   const [isLanguageVisible, setIsLanguageVisible] = useState(false);
   const isActionPending = useRef(false);
+  const [loadingPage, setLoadingPage] = useState(false);
 
   const displayName = user?.full_name ?? "Loja";
   const initial = displayName.trim().charAt(0).toUpperCase() || "F";
@@ -138,7 +148,7 @@ export default function HomeScreen() {
       active = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.access_token]);
+  }, [user?.access_token, balanceRevision]);
 
   const handleSinglePress = useCallback((action) => {
     if (isActionPending.current) return;
@@ -190,6 +200,45 @@ export default function HomeScreen() {
   const handleMessagePress = useCallback(() => {
     handleSinglePress(() => showAlert(t("home.promotion"), PROMO_MESSAGE));
   }, [handleSinglePress, t, PROMO_MESSAGE]);
+
+  function changeLoadingPage(loading) {
+    setLoadingPage(loading);
+  }
+
+  if (Platform.OS === "web") {
+    return (
+      <ScrollView contentContainerStyle={styles.webContent}>
+        <PageHeader
+          title={t("nav.home")}
+          subtitle={t("dashboardInfo.subtitle")}
+        />
+        <Balance
+          details={balanceDetails}
+          loading={refreshing}
+          onRefresh={handleRefresh}
+          onDeposit={() => {
+            if (!wallet?.account_number) {
+              showAlert(t("common.error"), t("nav.walletUnavailable"));
+              return;
+            }
+            setIsDepositVisible(true);
+          }}
+        />
+        <Reports ref={reportsRef} />
+        {isDepositVisible && (
+          <DepositModal
+            visible
+            onClose={() => setIsDepositVisible(false)}
+            onSuccess={handleRefresh}
+            baseUrl={configs?.baseUrl}
+            token={user?.access_token}
+            accountNumber={wallet?.account_number}
+            currency={configs?.currency}
+          />
+        )}
+      </ScrollView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
@@ -290,7 +339,7 @@ export default function HomeScreen() {
             reportsY.current = event.nativeEvent.layout.y;
           }}
         >
-          <Reports ref={reportsRef} />
+          <Reports ref={reportsRef} setLoadingPage={changeLoadingPage} />
         </View>
       </ScrollView>
 
@@ -366,15 +415,50 @@ export default function HomeScreen() {
           currency={configs?.currency}
         />
       )}
+      {loadingPage && (
+        <View style={styles.loadingPage}>
+          <ActivityIndicator size="large" color={Colors.brand.primary} />
+        </View>
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  webContent: {
+    width: "100%",
+    maxWidth: 960,
+    alignSelf: "center",
+    flexGrow: 1,
+    padding: 24,
+    gap: 16,
+  },
+  webNotice: { gap: 12 },
+  webNoticeTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: Colors.textLight.primary,
+  },
+  webNoticeText: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: Colors.textLight.secondary,
+  },
+  webNoticeLink: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: Colors.brand.primaryDeep,
+  },
   safeArea: {
     flex: 1,
     backgroundColor: "transparent",
     paddingTop: 12,
+  },
+  loadingPage: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: "rgba(0,0,0,0.3)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   scrollContent: {
     width: "100%",

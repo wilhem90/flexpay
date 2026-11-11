@@ -1,12 +1,11 @@
-import { StyleSheet, View } from "react-native";
 import Navbar from "@/components/navbar/Navbar";
 import { useAppContext } from "@/context/Provider";
+import { StyleSheet, View } from "react-native";
 
-export default function MainLayout({ children, showSidebar = false }) {
+export default function MainLayout({ children }) {
   const { user } = useAppContext();
-  
-  const typedUser = user;
-  const isPayer = typedUser?.type_profile === "payer";
+
+  const isPayer = user?.type_profile === "payer";
 
   // Hide navbar and sidebar for payer users
   if (isPayer) {

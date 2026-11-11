@@ -62,13 +62,13 @@ export default function PinTransactionModal({ visible, onClose, onSuccess }) {
         data = await response.json();
       } catch {}
 
-      if (response.ok) {
+      if (response.ok && data?.success !== false) {
         showAlert("success", "PIN submitted successfully");
         setPin("");
         onSuccess?.();
         onClose();
       } else {
-        showAlert("error", data?.message || `Failed (${response.status})`);
+        showAlert("error", data?.message || data?.error || `Failed (${response.status})`);
         setPin("");
         inputRef.current?.focus();
       }

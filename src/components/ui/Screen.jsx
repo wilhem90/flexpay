@@ -39,6 +39,11 @@ export default function Screen({
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  scroll: { flexGrow: 1, alignItems: "center", padding: Space.lg, paddingBottom: Space.xxxl },
+  scroll: {
+    flexGrow: 1,
+    alignItems: "center",
+    padding: Space.lg,
+    paddingBottom: Space.xxxl,
+  },
   content: { width: "100%" },
 });

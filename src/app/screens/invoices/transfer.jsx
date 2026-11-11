@@ -145,8 +145,6 @@ export default function Invoice() {
     );
   }
 
-  console.log(user?.full_name);
-
   // Formata a operadora para exibição
   const operatorName =
     transfer.operator_name?.toLowerCase() === "moncash"
@@ -185,26 +183,27 @@ export default function Invoice() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        <View style={styles.receiptPaper} ref={receiptRef} collapsable={false} dataSet={{ printArea: "" }}>
+        <View
+          style={styles.receiptPaper}
+          ref={receiptRef}
+          collapsable={false}
+          dataSet={{ printArea: "" }}
+        >
           {/* HEADER */}
           <View style={styles.header}>
             <Text style={styles.brandName}>
-              {user?.type_profile === "user"
-                ? user?.full_name
-                : "Flexpay ltda1"}
+              {user?.type === "user" ? "Flexpay ltda" : user?.full_name}
             </Text>
             <View style={styles.subtitleRow}>
               <Text style={styles.brandSubtitle}>
                 {t("invoice.transactionReceipt")}
               </Text>
-              {isCompleted && (
-                <Ionicons
-                  name="checkmark-square"
-                  size={16}
-                  color={COLORS.green}
-                  style={{ marginLeft: 4 }}
-                />
-              )}
+              <Ionicons
+                name="checkmark-circle"
+                size={16}
+                color={COLORS.green}
+                style={{ marginLeft: 4 }}
+              />
             </View>
           </View>
 
@@ -287,7 +286,11 @@ export default function Invoice() {
           }}
           activeOpacity={0.8}
         >
-          <Ionicons name="share-outline" size={20} color={Colors.button.primaryText} />
+          <Ionicons
+            name="share-outline"
+            size={20}
+            color={Colors.button.primaryText}
+          />
           <Text style={styles.shareButtonText}>
             {t("invoice.shareReceipt")}
           </Text>

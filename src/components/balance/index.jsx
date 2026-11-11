@@ -81,7 +81,7 @@ export default function Balance({
     copyTimer.current = setTimeout(() => setCopied(false), 1800);
   }, [accountNumber, hasAccount]);
 
-  const balanceText = hidden ? "••••••" : formatCurrency(details?.balance);
+  const balanceText = hidden ? "••••••" : details?.balance == null ? "—" : formatCurrency(details.balance, details.currency);
 
   return (
     <View style={styles.container}>

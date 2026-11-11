@@ -25,7 +25,11 @@ function LanguageModal({ visible, onClose }) {
         <View style={styles.card}>
           <View style={styles.header}>
             <View style={styles.icon}>
-              <Ionicons name="language-outline" size={22} color={Colors.brand.primary} />
+              <Ionicons
+                name="language-outline"
+                size={22}
+                color={Colors.brand.primary}
+              />
             </View>
             <Text style={styles.title}>{t("settings.language")}</Text>
           </View>
@@ -41,13 +45,15 @@ function LanguageModal({ visible, onClose }) {
                 accessibilityState={{ selected }}
               >
                 <Text style={styles.code}>{lang.code.toUpperCase()}</Text>
-                <Text
-                  style={[styles.label, selected && styles.labelSelected]}
-                >
+                <Text style={[styles.label, selected && styles.labelSelected]}>
                   {lang.label}
                 </Text>
                 {selected && (
-                  <Ionicons name="checkmark-circle" size={22} color={Colors.brand.primary} />
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={22}
+                    color={Colors.brand.primary}
+                  />
                 )}
               </Pressable>
             );
@@ -94,14 +100,22 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderLight.default,
     backgroundColor: Colors.light.surfaceSoft,
   },
-  optionSelected: { borderColor: Colors.brand.primary, backgroundColor: Colors.light.surfaceSoft },
+  optionSelected: {
+    borderColor: Colors.brand.primary,
+    backgroundColor: Colors.light.surfaceSoft,
+  },
   code: {
     width: 36,
     fontSize: 12,
     fontWeight: "800",
     color: Colors.textLight.primary,
   },
-  label: { flex: 1, fontSize: 15, fontWeight: "600", color: Colors.textLight.primary },
+  label: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "600",
+    color: Colors.textLight.primary,
+  },
   labelSelected: { color: Colors.textLight.primary },
 });
 

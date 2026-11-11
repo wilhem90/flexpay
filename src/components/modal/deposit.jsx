@@ -39,6 +39,9 @@ function DepositModal({
 
   const value = parseAmount(amount);
   const canSubmit = value > 0 && !!accountNumber && !submitting;
+  const closeWhileIdle = () => {
+    if (!submitting) onClose();
+  };
 
   const submit = async () => {
     if (!canSubmit) return;
@@ -114,13 +117,13 @@ function DepositModal({
       visible={visible}
       transparent
       animationType="fade"
-      onRequestClose={onClose}
+      onRequestClose={closeWhileIdle}
     >
       <KeyboardAvoidingView
         style={styles.overlay}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <Pressable style={StyleSheet.absoluteFill} onPress={closeWhileIdle} />
         <View style={styles.card}>
           <View style={styles.header}>
             <View style={styles.icon}>

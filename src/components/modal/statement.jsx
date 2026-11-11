@@ -31,13 +31,6 @@ const NATURE_KEYS = {
   debit: "statement.nature.debit",
 };
 
-const SERVICE_KEYS = {
-  transfer: "statement.service.transfer",
-  topup: "statement.service.topup",
-  deposit: "statement.service.deposit",
-  commission: "statement.service.commission",
-};
-
 /* ---------- Cores/ícones por serviço ---------- */
 const SERVICE_STYLES = {
   transfer: { icon: "paper-plane-outline", color: Colors.brand.primaryDeep },
@@ -77,10 +70,10 @@ const DEFAULT_STATUS_STYLE = {
 };
 
 const formatCurrency = (value, currency = "BRL") =>
-  new Intl.NumberFormat("pt-BR", {
+  value == null || value === "" || !Number.isFinite(Number(value)) ? "—" : new Intl.NumberFormat("pt-BR", {
     style: "currency",
     currency,
-  }).format(Number(value) || 0);
+  }).format(Number(value));
 
 export default function StatementModal({ visible, statement, onClose }) {
   const { t } = useTranslation();
@@ -106,13 +99,16 @@ export default function StatementModal({ visible, statement, onClose }) {
     const d = new Date(created_at);
     return Number.isNaN(d.getTime())
       ? "—"
-      : d.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+      : d.toLocaleString();
   }, [created_at]);
 
   // Delta do saldo, colorido conforme a natureza
   const balanceDelta = useMemo(() => {
-    const before = Number(balance_before) || 0;
-    const after = Number(balance_after) || 0;
+    if (balance_before == null || balance_after == null || !Number.isFinite(Number(balance_before)) || !Number.isFinite(Number(balance_after))) {
+      return { value: "—", positive: true };
+    }
+    const before = Number(balance_before);
+    const after = Number(balance_after);
     const diff = after - before;
     return {
       value: formatCurrency(Math.abs(diff), currency),
@@ -128,7 +124,6 @@ export default function StatementModal({ visible, statement, onClose }) {
 
   const statusLabel = tr(STATUS_KEYS, status);
   const natureLabel = tr(NATURE_KEYS, nature);
-  const serviceLabel = tr(SERVICE_KEYS, serviceType);
 
   // `statement_id` é sempre igual a `id` neste backend — mostra só um.
   const displayId = statement_id ?? id;

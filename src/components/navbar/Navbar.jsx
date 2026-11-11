@@ -1,32 +1,75 @@
-import { Colors } from "@/constants/colors";
-import { useAppContext } from "@/context/Provider";
-import { Layout, Radius, Shadow, Space, Surface, Type } from "@/constants/theme";
-import { Ionicons } from "@expo/vector-icons";
-import { useTranslation } from "react-i18next";
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import LanguageSwitcher from "@/components/languageSwitcher";
-import ResetPasswordModal from "@/components/modal/resetPassword";
+import NotificationsModal from "@/components/modal/notifications";
+import PinTransactionModal from "@/components/settings/pintransaction";
+import { Colors } from "@/constants/colors";
+import {
+  Layout,
+  Radius,
+  Shadow,
+  Space,
+  Surface,
+  Type,
+} from "@/constants/theme";
+import { useAppContext } from "@/context/Provider";
+import { showAlert } from "@/helpers/alert";
+import { Ionicons } from "@expo/vector-icons";
+import { reloadAppAsync } from "expo";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import {
+  Image,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-export default function Navbar() {
-  const { user, logout } = useAppContext();
+export default function Navbar({
+  profileVisible,
+  onProfileVisibleChange,
+  onOpenMenu,
+}) {
+  const { user, deleteAccount, configs } = useAppContext();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const [showNotificationsModal, setShowNotificationsModal] = useState(false);
-  const [showProfileModal, setShowProfileModal] = useState(false);
-  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
+  const { width } = useWindowDimensions();
+  const compact = width < 480;
 
-  if (!user) return null;
+  const [localProfileVisible, setLocalProfileVisible] = useState(false);
+  const [pinVisible, setPinVisible] = useState(false);
+  const [pinAfterDismiss, setPinAfterDismiss] = useState(false);
+  const [notificationsVisible, setNotificationsVisible] = useState(false);
+  const [countNotifications, setCountNotifications] = useState(0);
+
+  const showProfileModal = profileVisible ?? localProfileVisible;
+  const setShowProfileModal = onProfileVisibleChange ?? setLocalProfileVisible;
 
   const isWeb = Platform.OS === "web";
   const name = user?.full_name ?? "FlexPay";
   const initial = name.trim().charAt(0).toUpperCase() || "F";
+  const badgeText =
+    countNotifications > 99 ? "99+" : String(countNotifications);
 
-  const handleLogout = () => {
+  const handleDeleteAccount = () => {
     setShowProfileModal(false);
-    logout();
+    deleteAccount();
   };
+
+  const handleReload = async () => {
+    try {
+      await reloadAppAsync();
+    } catch (error) {
+      console.error("Failed to reload the app:", error);
+      showAlert(t("common.error"), t("nav.reloadFailed"));
+    }
+  };
+
+  if (!user) return null;
 
   return (
     <>
@@ -34,52 +77,85 @@ export default function Navbar() {
         style={[
           styles.navbar,
           isWeb && styles.navbarWeb,
+          compact && styles.navbarCompact,
           { paddingTop: isWeb ? 0 : insets.top },
         ]}
       >
-        <View style={styles.container}>
-          {/* Right - Notifications + Profile */}
-          <View style={styles.right}>
-            {/* Notifications Bell */}
+        <View style={[styles.container, compact && styles.containerCompact]}>
+          {onOpenMenu && (
             <Pressable
-              onPress={() => setShowNotificationsModal(true)}
-              style={({ pressed, hovered }) => [
-                styles.iconButton,
-                (pressed || hovered) && styles.iconButtonActive,
-              ]}
+              onPress={onOpenMenu}
               accessibilityRole="button"
-              accessibilityLabel={t("navbar.notifications") || "Notifications"}
+              accessibilityLabel={t("nav.menu")}
+              style={({ pressed }) => [
+                styles.iconButton,
+                pressed && styles.iconButtonActive,
+              ]}
+            >
+              <Ionicons name="menu-outline" size={24} color={Surface.text} />
+            </Pressable>
+          )}
+
+          <Pressable
+            style={styles.brand}
+            onPress={handleReload}
+            accessibilityRole="button"
+            accessibilityLabel={t("nav.reloadApp")}
+          >
+            <Image
+              source={require("../../../assets/images/favicon.png")}
+              style={styles.brandIcon}
+              accessibilityIgnoresInvertColors
+            />
+            <Text style={styles.brandText}>
+              Flex<Text style={styles.brandAccent}>Pay</Text>
+            </Text>
+          </Pressable>
+
+          <View style={[styles.right, compact && styles.rightCompact]}>
+            {/* Botão de notificações */}
+            <Pressable
+              onPress={() => setNotificationsVisible(true)}
+              accessibilityRole="button"
+              accessibilityLabel={t("navbar.notifications")}
+              style={({ pressed }) => [
+                styles.iconButton,
+                pressed && styles.iconButtonActive,
+              ]}
             >
               <Ionicons
                 name="notifications-outline"
                 size={22}
                 color={Surface.textSecondary}
               />
-              {/* Notification badge */}
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>3</Text>
-              </View>
+              {countNotifications > 0 && (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.notificationBadgeText}>{badgeText}</Text>
+                </View>
+              )}
             </Pressable>
 
-            {/* Profile Menu */}
+            {/* Perfil */}
             <View style={styles.profileWrapper}>
               <Pressable
                 onPress={() => setShowProfileModal(true)}
-                style={({ pressed, hovered }) => [
+                style={({ pressed }) => [
                   styles.profileButton,
-                  (pressed || hovered) && styles.profileButtonActive,
+                  pressed && styles.profileButtonActive,
                 ]}
                 accessibilityRole="button"
-                accessibilityLabel={t("navbar.profile") || "Profile"}
+                accessibilityLabel={t("navbar.profile")}
               >
                 <View style={styles.avatar}>
                   <Text style={styles.avatarText}>{initial}</Text>
                 </View>
-                <View style={styles.profileInfo}>
-                  <Text style={styles.profileName} numberOfLines={1}>
-                    {name}
-                  </Text>
-                </View>
+                {!compact && (
+                  <View style={styles.profileInfo}>
+                    <Text style={styles.profileName} numberOfLines={1}>
+                      {t("navbar.profile")}
+                    </Text>
+                  </View>
+                )}
                 <Ionicons
                   name={showProfileModal ? "chevron-up" : "chevron-down"}
                   size={18}
@@ -91,61 +167,52 @@ export default function Navbar() {
         </View>
       </View>
 
-      {/* Notifications Modal */}
-      {showNotificationsModal && (
-        <>
+      {/* ===== PROFILE MODAL ===== */}
+      <Modal
+        visible={showProfileModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowProfileModal(false)}
+        onDismiss={() => {
+          if (pinAfterDismiss) {
+            setPinAfterDismiss(false);
+            setPinVisible(true);
+          }
+        }}
+      >
+        <View style={styles.modalOverlay}>
           <Pressable
-            style={styles.backdrop}
-            onPress={() => setShowNotificationsModal(false)}
-          />
-          <View style={[styles.modal, styles.notificationsModal]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t("navbar.notifications") || "Notifications"}</Text>
-              <Pressable
-                onPress={() => setShowNotificationsModal(false)}
-                accessibilityRole="button"
-              >
-                <Ionicons name="close-outline" size={24} color={Surface.text} />
-              </Pressable>
-            </View>
-            <View style={styles.modalContent}>
-              <Text style={styles.emptyText}>No notifications yet</Text>
-            </View>
-          </View>
-        </>
-      )}
-
-      {/* Profile Modal */}
-      {showProfileModal && (
-        <>
-          <Pressable
-            style={styles.backdrop}
+            style={StyleSheet.absoluteFill}
             onPress={() => setShowProfileModal(false)}
           />
           <View style={[styles.modal, styles.profileModalStyle]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t("navbar.profile") || "Profile"}</Text>
+              <Text style={styles.modalTitle}>{t("navbar.profile")}</Text>
               <Pressable
                 onPress={() => setShowProfileModal(false)}
                 accessibilityRole="button"
+                accessibilityLabel={t("notifications.close")}
               >
                 <Ionicons name="close-outline" size={24} color={Surface.text} />
               </Pressable>
             </View>
-            <ScrollView style={styles.modalContent} showsVerticalScrollIndicator>
+            <ScrollView
+              style={styles.modalContent}
+              showsVerticalScrollIndicator
+            >
               <View style={styles.profileContent}>
                 <View style={styles.profileAvatar}>
                   <Text style={styles.profileAvatarText}>{initial}</Text>
                 </View>
                 <Text style={styles.profileFullName}>{name}</Text>
-                <Text style={styles.profileEmail}>{user?.email || "user@example.com"}</Text>
+                <Text style={styles.profileEmail}>{user?.email || ""}</Text>
               </View>
 
               <View style={styles.divider} />
 
               <View style={styles.languageSection}>
-                <Text style={styles.dropdownLabel}>{t("navbar.language") || "Language"}</Text>
-                <LanguageSwitcher compact dropdown />
+                <Text style={styles.dropdownLabel}>{t("navbar.language")}</Text>
+                <LanguageSwitcher />
               </View>
 
               <View style={styles.divider} />
@@ -153,14 +220,15 @@ export default function Navbar() {
               <Pressable
                 onPress={() => {
                   setShowProfileModal(false);
-                  setShowResetPasswordModal(true);
+                  if (Platform.OS === "ios") setPinAfterDismiss(true);
+                  else setPinVisible(true);
                 }}
-                style={({ pressed, hovered }) => [
+                style={({ pressed }) => [
                   styles.dropdownItem,
-                  (pressed || hovered) && styles.dropdownItemHover,
+                  pressed && styles.dropdownItemHover,
                 ]}
                 accessibilityRole="button"
-                accessibilityLabel={t("resetPassword.title") || "Change Password"}
+                accessibilityLabel={t("nav.transactionPin")}
               >
                 <Ionicons
                   name="key-outline"
@@ -168,39 +236,50 @@ export default function Navbar() {
                   color={Colors.brand.primaryDeep}
                 />
                 <Text style={styles.dropdownItemText}>
-                  {t("resetPassword.title") || "Change Password"}
+                  {t("nav.transactionPin")}
                 </Text>
               </Pressable>
 
               <View style={styles.divider} />
 
               <Pressable
-                onPress={handleLogout}
-                style={({ pressed, hovered }) => [
+                onPress={handleDeleteAccount}
+                style={({ pressed }) => [
                   styles.dropdownItem,
-                  (pressed || hovered) && styles.dropdownItemHover,
+                  pressed && styles.dropdownItemHover,
                 ]}
                 accessibilityRole="button"
-                accessibilityLabel={t("home.logout") || "Logout"}
+                accessibilityLabel={t("home.deleteAccount")}
               >
                 <Ionicons
-                  name="log-out-outline"
+                  name="trash-outline"
                   size={18}
                   color={Colors.status.error}
                 />
                 <Text style={styles.dropdownItemLogout}>
-                  {t("home.logout") || "Logout"}
+                  {t("home.deleteAccount")}
                 </Text>
               </Pressable>
             </ScrollView>
           </View>
-        </>
+        </View>
+      </Modal>
+
+      {/* ===== PIN MODAL ===== */}
+      {pinVisible && (
+        <PinTransactionModal visible onClose={() => setPinVisible(false)} />
       )}
 
-      {/* Reset Password Modal */}
-      <ResetPasswordModal 
-        visible={showResetPasswordModal} 
-        onClose={() => setShowResetPasswordModal(false)} 
+      {/* ===== NOTIFICATIONS MODAL ===== */}
+      {/* Sempre montado: preserva estado de "lida" entre aberturas */}
+      <NotificationsModal
+        key={`${configs.baseUrl}:${user.access_token}`}
+        baseUrl={configs.baseUrl}
+        token={user.access_token}
+        visible={notificationsVisible}
+        onClose={() => setNotificationsVisible(false)}
+        countNotifications={setCountNotifications}
+        onReadChange={setCountNotifications}
       />
     </>
   );
@@ -217,19 +296,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: Space.xl,
     height: Layout.topbarHeight,
   },
+  navbarCompact: { paddingHorizontal: 0 },
   container: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "flex-end",
+    justifyContent: "space-between",
     paddingHorizontal: Space.lg,
     paddingVertical: Space.md,
     height: Platform.OS === "web" ? Layout.topbarHeight : undefined,
   },
   right: {
+    marginLeft: "auto",
     flexDirection: "row",
     alignItems: "center",
     gap: Space.lg,
   },
+  containerCompact: { paddingHorizontal: Space.sm },
+  rightCompact: { gap: Space.xs },
+  brand: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Space.sm,
+  },
+  brandIcon: { width: 32, height: 32, borderRadius: Radius.sm },
+  brandText: {
+    fontSize: 17,
+    fontWeight: "800",
+    letterSpacing: -0.5,
+    color: Surface.text,
+  },
+  brandAccent: { color: Colors.brand.primaryDeep },
   iconButton: {
     position: "relative",
     width: 40,
@@ -241,7 +337,7 @@ const styles = StyleSheet.create({
   iconButtonActive: {
     backgroundColor: Surface.soft,
   },
-  badge: {
+  notificationBadge: {
     position: "absolute",
     top: -4,
     right: -4,
@@ -249,12 +345,13 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
     minWidth: 20,
     height: 20,
+    paddingHorizontal: 4,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
     borderColor: Surface.card,
   },
-  badgeText: {
+  notificationBadgeText: {
     color: Colors.button.primaryText,
     fontSize: 11,
     fontWeight: "700",
@@ -293,16 +390,13 @@ const styles = StyleSheet.create({
     ...Type.bodyStrong,
     color: Surface.text,
   },
-  dropdownHeader: {
-    paddingHorizontal: Space.md,
-    paddingTop: Space.md,
-  },
   dropdownLabel: {
     ...Type.caption,
     color: Surface.textSecondary,
     fontWeight: "600",
     textTransform: "uppercase",
     marginBottom: Space.sm,
+    textAlign: "center",
   },
   dropdownItem: {
     flexDirection: "row",
@@ -327,22 +421,16 @@ const styles = StyleSheet.create({
     backgroundColor: Surface.border,
     marginVertical: Space.sm,
   },
-  backdrop: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 999,
+  modalOverlay: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: Space.lg,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   modal: {
-    position: "absolute",
-    top: "50%",
-    left: "50%",
-    marginLeft: -150,
-    marginTop: -150,
-    width: 300,
+    width: "100%",
+    maxWidth: 320,
     maxHeight: 400,
     backgroundColor: Surface.card,
     borderRadius: Radius.lg,
@@ -352,13 +440,7 @@ const styles = StyleSheet.create({
     zIndex: 1000,
     overflow: "hidden",
   },
-  notificationsModal: {
-    marginTop: -100,
-  },
-  profileModalStyle: {
-    width: 320,
-    marginLeft: -160,
-  },
+  profileModalStyle: {},
   modalHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -376,12 +458,6 @@ const styles = StyleSheet.create({
   modalContent: {
     padding: Space.lg,
     maxHeight: 300,
-  },
-  emptyText: {
-    ...Type.body,
-    color: Surface.textSecondary,
-    textAlign: "center",
-    paddingVertical: Space.xl,
   },
   profileContent: {
     alignItems: "center",
